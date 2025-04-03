@@ -4,8 +4,4 @@ app:
   debug: false
 
 # Feature settings
-features:
-  obsidian:
-    vault_path: ~/Obsidian
-  placeholder:
-    default_file: ~/Downloads/data.txt 
+obsidian_vault_path: ~/Obsidian

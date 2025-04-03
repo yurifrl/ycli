@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -13,17 +14,11 @@ type Config struct {
 		Debug bool   `mapstructure:"debug"`
 	} `mapstructure:"app"`
 	
-	Features struct {
-		Obsidian struct {
-			VaultPath string `mapstructure:"vault_path"`
-		} `mapstructure:"obsidian"`
-		Placeholder struct {
-			DefaultFile string `mapstructure:"default_file"`
-		} `mapstructure:"placeholder"`
-	} `mapstructure:"features"`
-	
-	OpenAIAPIKey string
+	ObsidianVaultPath string `mapstructure:"obsidian_vault_path"`
+	OpenAIAPIKey string `mapstructure:"openai_api_key"`
+	AnthropicAPIKey string `mapstructure:"anthropic_api_key"`
 }
+
 
 func LoadConfig() (*Config, error) {
 	viper.SetConfigName("config")
@@ -38,8 +33,8 @@ func LoadConfig() (*Config, error) {
 	
 	// Bind environment variables
 	viper.AutomaticEnv()
-	viper.BindEnv("OpenAIAPIKey", "OPENAI_API_KEY")
-
+	viper.BindEnv("openai_api_key", "OPENAI_API_KEY")
+	viper.BindEnv("anthropic_api_key", "ANTHROPIC_API_KEY")
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
 	}
@@ -48,6 +43,15 @@ func LoadConfig() (*Config, error) {
 	if err := viper.Unmarshal(&config); err != nil {
 		return nil, err
 	}
+
+	if config.OpenAIAPIKey == "" && config.AnthropicAPIKey == "" {
+		return nil, fmt.Errorf("OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable is not set")
+	}
+
+	if config.ObsidianVaultPath == "" {
+		return nil, fmt.Errorf("OBSIDIAN_VAULT_PATH environment variable is not set")
+	}
+
 
 	return &config, nil
 } 

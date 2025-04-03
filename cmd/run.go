@@ -39,7 +39,7 @@ func run(cmd *cobra.Command, args []string) {
 				Options(
 					huh.NewOption("Table Data", "FunctionA"),
 					huh.NewOption("Simple Message", "FunctionB"),
-					huh.NewOption("Obsidian", "ObsidinaPicker"),
+					huh.NewOption("Obsidian Weekly Template", "ObsidianWeeklyTemplate"),
 				).
 				Value(&selected),
 		),
@@ -52,12 +52,13 @@ func run(cmd *cobra.Command, args []string) {
 
 	core := placeholder.Core{}
 	
-	vaultPath := ""
-	if appConfig != nil {
-		vaultPath = appConfig.Features.Obsidian.VaultPath
-	}
-	
-	obsidian := obsidian.New(lg.Default(), vaultPath, appConfig.OpenAIAPIKey)
+	obsidian := obsidian.New(
+		lg.Default(),
+		appConfig.ObsidianVaultPath,
+		appConfig.AnthropicAPIKey,
+		"claude-3-5-sonnet-20240620",
+		obsidian.Anthropic,
+	)
 
 	switch selected {
 	case "FunctionA":
@@ -82,16 +83,13 @@ func run(cmd *cobra.Command, args []string) {
 		}
 	case "FunctionB":
 		defaultFile := "~/Downloads/8\\ Aug\\ 13.50.48\\ System\\ Audio_Microphone.txt"
-		if appConfig != nil && appConfig.Features.Placeholder.DefaultFile != "" {
-			defaultFile = appConfig.Features.Placeholder.DefaultFile
-		}
 		message, err := core.SummarizeFile(defaultFile, "")
 		if err != nil {
 			os.Exit(1)
 		}
 		fmt.Println(message)
-	case "ObsidinaPicker":
-		message, err := obsidian.Picker()
+	case "ObsidianWeeklyTemplate":
+		message, err := obsidian.WeeklyTemplate()
 		if err != nil {
 			lg.Fatal(err)
 		}

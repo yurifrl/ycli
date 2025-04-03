@@ -7,63 +7,46 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/charmbracelet/huh"
 	lg "github.com/charmbracelet/log"
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/anthropic"
+	"github.com/tmc/langchaingo/llms/openai"
+)
+
+type ModelProvider string
+
+const (
+	OpenAI    ModelProvider = "openai"
+	Anthropic ModelProvider = "anthropic"
 )
 
 type Obsidian struct {
-	log *lg.Logger
-	vaultPath string
-	apiKey string
+	log          *lg.Logger
+	vaultPath    string
+	apiKey       string
+	modelName    string
+	provider     ModelProvider
 }
 
-func New(log *lg.Logger, vaultPath string, apiKey string) *Obsidian {
+func New(log *lg.Logger, vaultPath string, apiKey string, modelName string, provider ModelProvider) *Obsidian {
 	return &Obsidian{
-		log: log,
+		log:       log,
 		vaultPath: vaultPath,
-		apiKey: apiKey,
+		apiKey:    apiKey,
+		modelName: modelName,
+		provider:  provider,
 	}
 }
 
-func (o *Obsidian) Picker() (string, error) {
-	selected := ""
-
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Choose your option").
-				Options(
-					huh.NewOption("Create Weekly Template", "CreateWeeklyTemplate"),
-					huh.NewOption("Create Daily Template", "CreateDailyTemplate"),
-				).
-				Value(&selected),
-		),
-	)
-
-	err := form.Run()
-	if err != nil {
-		return "", err
-	}
-
-	switch selected {
-	case "CreateWeeklyTemplate":
-		o.log.Info("Creating weekly template...")
-		return o.processWeeklyTemplate()
-	case "CreateDailyTemplate":
-		return "Creating daily template...", nil
-	}
-
-	return "", nil
-}
-
-func (o *Obsidian) processWeeklyTemplate() (string, error) {
+func (o *Obsidian) WeeklyTemplate() (string, error) {
 	if o.vaultPath == "" {
 		return "", fmt.Errorf("Obsidian vault path is not set")
 	}
 	
-	templatePath := filepath.Join(o.vaultPath, "_Meta", "Templates", "Week Template")
+	homeDir, _ := os.UserHomeDir()
+	templatePath := filepath.Join(homeDir, "Obsidian", "_Meta", "Templates", "Week Template.md")
+	o.log.Debug("Using template at", "path", templatePath)
+	
 	templateContent, err := os.ReadFile(templatePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read template file: %w", err)
@@ -73,7 +56,21 @@ func (o *Obsidian) processWeeklyTemplate() (string, error) {
 		return "", fmt.Errorf("API key is not set")
 	}
 	
-	client := openai.NewClient(option.WithAPIKey(o.apiKey))
+	var llm llms.Model
+	var llmErr error
+
+	switch o.provider {
+	case OpenAI:
+		llm, llmErr = openai.New(openai.WithToken(o.apiKey), openai.WithModel(o.modelName))
+	case Anthropic:
+		llm, llmErr = anthropic.New(anthropic.WithToken(o.apiKey), anthropic.WithModel(o.modelName))
+	default:
+		return "", fmt.Errorf("unsupported model provider: %s", o.provider)
+	}
+
+	if llmErr != nil {
+		return "", fmt.Errorf("failed to initialize LLM: %w", llmErr)
+	}
 	
 	today := time.Now().Format("02/01/2006")
 	systemPrompt := fmt.Sprintf(`
@@ -88,23 +85,13 @@ func (o *Obsidian) processWeeklyTemplate() (string, error) {
 - Repita os eventos que acontecem no mesmo dia
 `, today)
 	
-	messages := []openai.ChatCompletionMessageParamUnion{
-		openai.SystemMessage(systemPrompt),
-		openai.UserMessage(string(templateContent)),
-	}
+	prompt := systemPrompt + "\n\n" + string(templateContent)
 	
-	resp, err := client.Chat.Completions.New(context.Background(), openai.ChatCompletionNewParams{
-		Messages: messages,
-		Model:    "gpt-4",
-	})
-	o.log.Info("Template processed with OpenAI")
+	result, err := llm.Call(context.Background(), prompt)
+	o.log.Info("Template processed with LLM")
 	if err != nil {
-		return "", fmt.Errorf("failed to process template with OpenAI: %w", err)
+		return "", fmt.Errorf("failed to process template with LLM: %w", err)
 	}
 	
-	if len(resp.Choices) == 0 {
-		return "", fmt.Errorf("no response from OpenAI")
-	}
-	
-	return resp.Choices[0].Message.Content, nil
+	return result, nil
 }
