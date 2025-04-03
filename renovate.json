@@ -1,0 +1,27 @@
+{
+    "go": {
+        "ecosystem": "go",
+        "directory": ".",
+        "schedule": [
+            "at any time"
+        ],
+        "pin": {
+            "from": "latest",
+            "to": "minor"
+        }
+    },
+    "docker": {
+        "ecosystem": "docker",
+        "dockerfile": [
+            "./Dockerfile"
+        ],
+        "schedule": [
+            "at any time"
+        ],
+        "pin": {
+            "serviceType": "image",
+            "from": "latest",
+            "to": "patch"
+        }
+    }
+}

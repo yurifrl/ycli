@@ -1,0 +1,11 @@
+services:
+  sh:
+    build:
+      context: .
+      target: dev 
+    entrypoint: fish
+    volumes:
+      - .:/app
+      - ~/.aws:/root/.aws:ro
+    environment:
+      - OPENAI_API_KEY

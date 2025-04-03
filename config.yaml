@@ -1,0 +1,11 @@
+# CLI Configuration
+app:
+  name: cli
+  debug: false
+
+# Feature settings
+features:
+  obsidian:
+    vault_path: ~/Obsidian
+  placeholder:
+    default_file: ~/Downloads/data.txt 
