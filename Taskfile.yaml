@@ -4,3 +4,11 @@ tasks:
   op:
     cmds:
       -  op inject -i .env.op -o .env
+  tag:
+    desc: Get current version and create tag
+    cmds:
+      - |
+        VERSION=$(cat VERSION)
+        echo "Current version: $VERSION"
+        git tag "v$VERSION"
+        git push origin "v$VERSION"
